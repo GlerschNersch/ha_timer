@@ -1,18 +1,29 @@
 blueprint:
-  name: Start Timer on Button Press
-  description: Starts a timer when a button is pressed
+  name: Start Timer on Button Press (Robust)
+  description: >
+    Starts a specified timer when an input button is pressed. Includes state checks and optional notification if timer fails to start.
   domain: automation
   input:
     trigger_button:
-      name: Button
+      name: Input Button
+      description: The input_button entity to trigger the timer
       selector:
         entity:
           domain: input_button
     target_timer:
       name: Timer
+      description: The timer entity to start
       selector:
         entity:
           domain: timer
+    notify_on_fail:
+      name: Notify on Failure
+      description: Should it notify if the timer fails to start?
+      default: false
+      selector:
+        boolean:
+
+mode: single
 
 trigger:
   - platform: state
@@ -20,8 +31,17 @@ trigger:
     to: "on"
 
 action:
-  - service: timer.start
-    target:
-      entity_id: !input target_timer
-
-mode: single
+  - choose:
+      - conditions: "{{ states(!input.target_timer) not in ['unavailable', 'unknown'] }}"
+        sequence:
+          - service: timer.start
+            target:
+              entity_id: !input target_timer
+          - wait_for_trigger:
+              - platform: state
+                entity_id: !input target_timer
+                to: "active"
+            timeout: "00:00:03"
+            continue_on_timeout: true
+      - conditions: >
+          {{ is_state(!input_
