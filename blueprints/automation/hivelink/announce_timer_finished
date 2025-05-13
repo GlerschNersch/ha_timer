@@ -1,37 +1,37 @@
 blueprint:
   name: Announce When Timer Finishes
   description: >
-    Announces a message when the selected timer finishes. Supports TTS playback,
-    persistent UI notification, and a hardcoded mobile push notification target.
+    Sends a TTS announcement and/or notification when a timer finishes.
   domain: automation
   input:
-    target_timer:
+    timer_entity:
       name: Timer
+      description: The timer to watch
       selector:
         entity:
           domain: timer
 
     use_tts:
-      name: Use TTS
+      name: Announce with TTS
       default: false
       selector:
         boolean:
 
     media_player:
-      name: Media Player (required if using TTS)
+      name: Media Player (for TTS)
       default: null
       selector:
         entity:
           domain: media_player
 
-    send_notification:
-      name: Send Persistent Notification to Bell Icon
-      default: false
+    send_ui_notification:
+      name: Send Bell Notification
+      default: true
       selector:
         boolean:
 
-    send_push:
-      name: Send Mobile Push Notification
+    send_mobile_notification:
+      name: Send Push to Mobile
       default: false
       selector:
         boolean:
@@ -40,47 +40,40 @@ mode: single
 
 trigger:
   - platform: state
-    entity_id: !input target_timer
+    entity_id: !input timer_entity
     to: "idle"
 
 action:
   - variables:
-      timer_name: "{{ state_attr(target_timer, 'friendly_name') or target_timer }}"
-      tts_message: "Time is up! The timer for {{ timer_name }} has ended."
+      friendly_name: "{{ state_attr(timer_entity, 'friendly_name') or timer_entity }}"
+      message_text: "Time is up! The timer for {{ friendly_name }} has finished."
 
-  # 🔊 TTS
   - choose:
       - conditions:
           - condition: template
             value_template: "{{ use_tts and media_player is not none }}"
         sequence:
-          - service: logbook.log
-            data:
-              name: "TTS Message"
-              message: "{{ tts_message }}"
           - service: tts.google_translate_say
             data:
               entity_id: !input media_player
-              message: "{{ tts_message }}"
+              message: "{{ message_text }}"
 
-  # 🔔 Persistent Notification
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ send_notification }}"
+            value_template: "{{ send_ui_notification }}"
         sequence:
           - service: persistent_notification.create
             data:
-              title: "Timer Finished"
-              message: "{{ tts_message }}"
+              title: "Timer Done"
+              message: "{{ message_text }}"
 
-  # 📱 Push Notification (Hardcoded service)
   - choose:
       - conditions:
           - condition: template
-            value_template: "{{ send_push }}"
+            value_template: "{{ send_mobile_notification }}"
         sequence:
           - service: notify.mobile_app_pixel_9_pro_fold
             data:
-              title: "Timer Finished"
-              message: "{{ tts_message }}"
+              title: "Timer Done"
+              message: "{{ message_text }}"
