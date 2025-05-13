@@ -1,7 +1,7 @@
 blueprint:
-  name: Start Timer on Button Press (Robust)
+  name: Start or Resume Timer with Time Display
   description: >
-    Starts a specified timer when an input button is pressed. Includes state checks and optional notification if timer fails to start.
+    Starts or resumes a timer when a button is pressed. Displays time remaining via notification or log.
   domain: automation
   input:
     trigger_button:
@@ -10,18 +10,35 @@ blueprint:
       selector:
         entity:
           domain: input_button
+
     target_timer:
       name: Timer
-      description: The timer entity to start
+      description: The timer entity to start or resume
       selector:
         entity:
           domain: timer
-    notify_on_fail:
-      name: Notify on Failure
-      description: Should it notify if the timer fails to start?
+
+    notify_user:
+      name: Notify User
+      description: Notify the user with time remaining
       default: false
       selector:
         boolean:
+
+    use_tts:
+      name: Use TTS Announcement (optional)
+      description: Use a media player to announce remaining time
+      default: false
+      selector:
+        boolean:
+
+    media_player:
+      name: Media Player (optional)
+      description: Required if using TTS
+      default: null
+      selector:
+        entity:
+          domain: media_player
 
 mode: single
 
@@ -30,18 +47,50 @@ trigger:
     entity_id: !input trigger_button
     to: "on"
 
+variables:
+  timer_entity: !input target_timer
+  remaining: "{{ state_attr(timer_entity, 'remaining') }}"
+  is_active: "{{ is_state(timer_entity, 'active') }}"
+  is_paused: "{{ is_state(timer_entity, 'paused') }}"
+
 action:
   - choose:
-      - conditions: "{{ states(!input.target_timer) not in ['unavailable', 'unknown'] }}"
+      - conditions: "{{ is_paused }}"
+        sequence:
+          - service: timer.resume
+            target:
+              entity_id: "{{ timer_entity }}"
+      - conditions: "{{ not is_active }}"
         sequence:
           - service: timer.start
             target:
-              entity_id: !input target_timer
-          - wait_for_trigger:
-              - platform: state
-                entity_id: !input target_timer
-                to: "active"
-            timeout: "00:00:03"
-            continue_on_timeout: true
-      - conditions: >
-          {{ is_state(!input_
+              entity_id: "{{ timer_entity }}"
+
+  - delay: "00:00:01"  # Give state a second to update
+
+  - variables:
+      updated_remaining: "{{ state_attr(timer_entity, 'remaining') }}"
+
+  - choose:
+      - conditions: "{{ !input.notify_user }}"
+        sequence:
+          - service: logbook.log
+            data:
+              name: Timer Info
+              message: "Timer '{{ timer_entity }}' started with {{ updated_remaining }} remaining."
+
+      - conditions: "{{ input.notify_user }}"
+        sequence:
+          - service: persistent_notification.create
+            data:
+              title: Timer Started
+              message: "Timer '{{ timer_entity }}' has {{ updated_remaining }} remaining."
+
+  - choose:
+      - conditions: "{{ input.use_tts and input.media_player != none }}"
+        sequence:
+          - service: tts.google_translate_say
+            data:
+              entity_id: !input media_player
+              message: >
+                "Timer started. You have {{ updated_remaining.split('.')[0].replace(':', ' minutes and ') }} seconds remaining."
