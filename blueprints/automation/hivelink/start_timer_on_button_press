@@ -83,12 +83,16 @@ variables:
 
 action:
   - choose:
-      - conditions: "{{ is_paused }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ is_paused }}"
         sequence:
           - service: timer.resume
             target:
               entity_id: "{{ timer_entity }}"
-      - conditions: "{{ not is_active }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ not is_active }}"
         sequence:
           - service: timer.start
             target:
@@ -100,14 +104,18 @@ action:
       updated_remaining: "{{ state_attr(timer_entity, 'remaining') }}"
 
   - choose:
-      - conditions: "{{ !input.notify_user }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ not notify_user }}"
         sequence:
           - service: logbook.log
             data:
               name: Timer Info
               message: "Timer '{{ timer_entity }}' started with {{ updated_remaining }} remaining."
 
-      - conditions: "{{ input.notify_user }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ notify_user }}"
         sequence:
           - service: persistent_notification.create
             data:
@@ -115,28 +123,36 @@ action:
               message: "Timer '{{ timer_entity }}' has {{ updated_remaining }} remaining."
 
   - choose:
-      - conditions: "{{ input.use_tts and input.media_player != none }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ use_tts and media_player is not none }}"
         sequence:
           - service: tts.google_translate_say
             data:
               entity_id: !input media_player
               message: >
-                "Timer started. You have {{ updated_remaining.split('.')[0].replace(':', ' minutes and ') }} seconds remaining."
+                Timer started. You have {{ updated_remaining.split('.')[0].replace(':', ' minutes and ') }} seconds remaining.
 
   - choose:
-      - conditions: "{{ input.scene_to_activate != none }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ scene_to_activate is not none }}"
         sequence:
           - service: scene.turn_on
             target:
               entity_id: !input scene_to_activate
 
   - choose:
-      - conditions: "{{ input.light_action == 'on' and input.light_entity != none }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ light_action == 'on' and light_entity is not none }}"
         sequence:
           - service: light.turn_on
             target:
               entity_id: !input light_entity
-      - conditions: "{{ input.light_action == 'off' and input.light_entity != none }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ light_action == 'off' and light_entity is not none }}"
         sequence:
           - service: light.turn_off
             target:
