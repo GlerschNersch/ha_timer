@@ -1,8 +1,8 @@
 blueprint:
   name: Announce When Timer Finishes
   description: >
-    Announces a message when the selected timer finishes. You can enable TTS, push notification,
-    or a UI (persistent) notification. Uses a more reliable state-based trigger.
+    Announces a message when the selected timer finishes. Choose TTS, persistent UI notification,
+    or mobile push notification to a selected device.
   domain: automation
   input:
     target_timer:
@@ -37,58 +37,11 @@ blueprint:
         boolean:
 
     mobile_notify_target:
-      name: Mobile Notify Service (optional)
-      description: Example: notify.mobile_app_your_phone
+      name: Select Mobile Device to Push Notification
       default: ""
       selector:
-        text:
-          multiline: false
-
-mode: single
-
-trigger:
-  - platform: state
-    entity_id: !input target_timer
-    to: "idle"
-
-action:
-  - variables:
-      timer_name: "{{ state_attr(target_timer, 'friendly_name') or target_timer }}"
-      tts_message: "Time is up! The timer for {{ timer_name }} has ended."
-
-  # 🔊 TTS
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ use_tts and media_player is not none }}"
-        sequence:
-          - service: logbook.log
-            data:
-              name: "TTS Message"
-              message: "{{ tts_message }}"
-          - service: tts.google_translate_say
-            data:
-              entity_id: !input media_player
-              message: "{{ tts_message }}"
-
-  # 🔔 UI Notification
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ send_notification }}"
-        sequence:
-          - service: persistent_notification.create
-            data:
-              title: "Timer Finished"
-              message: "{{ tts_message }}"
-
-  # 📱 Mobile Push
-  - choose:
-      - conditions:
-          - condition: template
-            value_template: "{{ send_push and mobile_notify_target != '' }}"
-        sequence:
-          - service: "{{ mobile_notify_target }}"
-            data:
-              title: "Timer Finished"
-              message: "{{ tts_message }}"
+        select:
+          options:
+            - notify.mobile_app_pixel_8_pro
+            - notify.mobile_app_iphone_matt
+            - notify.mobile_app_ipad_kitchen
