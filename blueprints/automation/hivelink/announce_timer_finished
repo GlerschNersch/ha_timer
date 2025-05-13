@@ -83,4 +83,4 @@ action:
           - service: notify.mobile_app_pixel_9_pro_fold
             data:
               title: "Timer Finished"
-              message
+              message: "{{ tts_message }}"
