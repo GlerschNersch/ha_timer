@@ -1,8 +1,8 @@
 blueprint:
-  name: Start or Resume Timer with Actions
+  name: Start or Resume Timer with Actions and Duration
   description: >
-    Starts or resumes a timer when a button is pressed. Logs remaining time and optionally
-    notifies, announces via TTS, activates a scene, and controls a light.
+    Starts or resumes a timer when a button is pressed. Optionally overrides the duration,
+    logs remaining time, notifies or announces via TTS, and controls scenes/lights.
   domain: automation
   input:
     trigger_button:
@@ -18,6 +18,14 @@ blueprint:
       selector:
         entity:
           domain: timer
+
+    custom_duration:
+      name: Custom Duration (optional)
+      description: Override the timer’s default duration (format: HH:MM:SS)
+      default: ""
+      selector:
+        text:
+          multiline: false
 
     notify_user:
       name: Notify User
@@ -77,6 +85,7 @@ trigger:
 
 variables:
   timer_entity: !input target_timer
+  custom_duration: !input custom_duration
   remaining: "{{ state_attr(timer_entity, 'remaining') }}"
   is_active: "{{ is_state(timer_entity, 'active') }}"
   is_paused: "{{ is_state(timer_entity, 'paused') }}"
@@ -95,13 +104,22 @@ action:
             value_template: "{{ not is_active }}"
         sequence:
           - service: timer.start
-            target:
+            data:
               entity_id: "{{ timer_entity }}"
+              duration: >
+                {% if custom_duration != "" %}
+                  {{ custom_duration }}
+                {% else %}
+                  omit
+                {% endif %}
 
   - delay: "00:00:01"
 
   - variables:
       updated_remaining: "{{ state_attr(timer_entity, 'remaining') }}"
+      remaining_seconds: "{{ state_attr(timer_entity, 'remaining').total_seconds() | int }}"
+      minutes: "{{ (remaining_seconds // 60) | int }}"
+      seconds: "{{ (remaining_seconds % 60) | int }}"
 
   - choose:
       - conditions:
@@ -131,7 +149,7 @@ action:
             data:
               entity_id: !input media_player
               message: >
-                Timer started. You have {{ updated_remaining.split('.')[0].replace(':', ' minutes and ') }} seconds remaining.
+                Timer started. You have {{ minutes }} minutes and {{ seconds }} seconds remaining.
 
   - choose:
       - conditions:
