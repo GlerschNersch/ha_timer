@@ -1,7 +1,8 @@
 blueprint:
-  name: Start or Resume Timer with Time Display
+  name: Start or Resume Timer with Actions
   description: >
-    Starts or resumes a timer when a button is pressed. Displays time remaining via notification or log.
+    Starts or resumes a timer when a button is pressed. Logs remaining time and optionally
+    notifies, announces via TTS, activates a scene, and controls a light.
   domain: automation
   input:
     trigger_button:
@@ -26,19 +27,46 @@ blueprint:
         boolean:
 
     use_tts:
-      name: Use TTS Announcement (optional)
-      description: Use a media player to announce remaining time
+      name: Use TTS Announcement
+      description: Announce remaining time using TTS
       default: false
       selector:
         boolean:
 
     media_player:
-      name: Media Player (optional)
-      description: Required if using TTS
+      name: Media Player
+      description: Required for TTS announcement
       default: null
       selector:
         entity:
           domain: media_player
+
+    light_entity:
+      name: Light to Control
+      description: Optional light to turn on/off when timer starts
+      default: null
+      selector:
+        entity:
+          domain: light
+
+    light_action:
+      name: Light Action
+      description: Action to take on the light (on/off/none)
+      default: "none"
+      selector:
+        select:
+          options:
+            - "on"
+            - "off"
+            - "none"
+
+    scene_to_activate:
+      name: Scene to Activate
+      description: Optional scene to activate when the timer starts
+      default: null
+      selector:
+        entity:
+          domain: scene
 
 mode: single
 
@@ -66,7 +94,7 @@ action:
             target:
               entity_id: "{{ timer_entity }}"
 
-  - delay: "00:00:01"  # Give state a second to update
+  - delay: "00:00:01"
 
   - variables:
       updated_remaining: "{{ state_attr(timer_entity, 'remaining') }}"
@@ -94,3 +122,22 @@ action:
               entity_id: !input media_player
               message: >
                 "Timer started. You have {{ updated_remaining.split('.')[0].replace(':', ' minutes and ') }} seconds remaining."
+
+  - choose:
+      - conditions: "{{ input.scene_to_activate != none }}"
+        sequence:
+          - service: scene.turn_on
+            target:
+              entity_id: !input scene_to_activate
+
+  - choose:
+      - conditions: "{{ input.light_action == 'on' and input.light_entity != none }}"
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: !input light_entity
+      - conditions: "{{ input.light_action == 'off' and input.light_entity != none }}"
+        sequence:
+          - service: light.turn_off
+            target:
+              entity_id: !input light_entity
