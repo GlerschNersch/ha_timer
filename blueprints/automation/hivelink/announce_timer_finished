@@ -1,8 +1,8 @@
 blueprint:
   name: Announce When Timer Finishes
   description: >
-    Announces a message when the selected timer finishes. Supports TTS, persistent UI notification,
-    and a hardcoded mobile push target (simplified for now).
+    Announces a message when the selected timer finishes. Supports TTS playback,
+    persistent UI notification, and a hardcoded mobile push notification target.
   domain: automation
   input:
     target_timer:
@@ -63,7 +63,7 @@ action:
               entity_id: !input media_player
               message: "{{ tts_message }}"
 
-  # 🔔 UI Notification
+  # 🔔 Persistent Notification
   - choose:
       - conditions:
           - condition: template
@@ -74,7 +74,7 @@ action:
               title: "Timer Finished"
               message: "{{ tts_message }}"
 
-  # 📱 Push Notification (hardcoded service name)
+  # 📱 Push Notification (Hardcoded service)
   - choose:
       - conditions:
           - condition: template
