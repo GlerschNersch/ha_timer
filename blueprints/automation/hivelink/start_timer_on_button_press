@@ -1,0 +1,27 @@
+blueprint:
+  name: Start Timer on Button Press
+  description: Starts a timer when a button is pressed
+  domain: automation
+  input:
+    trigger_button:
+      name: Button
+      selector:
+        entity:
+          domain: input_button
+    target_timer:
+      name: Timer
+      selector:
+        entity:
+          domain: timer
+
+trigger:
+  - platform: state
+    entity_id: !input trigger_button
+    to: "on"
+
+action:
+  - service: timer.start
+    target:
+      entity_id: !input target_timer
+
+mode: single
