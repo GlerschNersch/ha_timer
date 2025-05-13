@@ -1,0 +1,60 @@
+blueprint:
+  name: Announce When Timer Finishes
+  description: >
+    Announces a message when the selected timer finishes.
+  domain: automation
+  input:
+    target_timer:
+      name: Timer
+      selector:
+        entity:
+          domain: timer
+
+    use_tts:
+      name: Use TTS
+      default: true
+      selector:
+        boolean:
+
+    media_player:
+      name: Media Player (required if using TTS)
+      default: null
+      selector:
+        entity:
+          domain: media_player
+
+    notify_user:
+      name: Send Notification
+      default: false
+      selector:
+        boolean:
+
+mode: single
+
+trigger:
+  - platform: event
+    event_type: timer.finished
+    event_data:
+      entity_id: !input target_timer
+
+action:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ use_tts and media_player is not none }}"
+        sequence:
+          - service: tts.google_translate_say
+            data:
+              entity_id: !input media_player
+              message: >
+                Timer has ended. Time is up!
+
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ notify_user }}"
+        sequence:
+          - service: persistent_notification.create
+            data:
+              title: Timer Complete
+              message: "The timer {{ target_timer }} has finished."
